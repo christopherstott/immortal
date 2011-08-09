@@ -74,7 +74,9 @@ var immortal = {
 	//
 	loadConfig: function() {
 		try {
-			this.config = JSON.parse(fs.readFileSync('config.json','utf8'));			
+			var configFile = process.argv[2] || 'config.json';
+			log('Reading - ' + configFile);
+			this.config = JSON.parse(fs.readFileSync(configFile,'utf8'));			
 		}
 		catch (e) {
 			log('EXCEPTION IN loadConfig : ' + e);

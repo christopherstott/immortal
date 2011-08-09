@@ -6,4 +6,4 @@ echo 'Killing previous node instances'
 killall node
 echo 'Starting immortal'
 rm /var/log/immortal/immortal.log
-exec /opt/node/current/bin/node immortal.js >> /var/log/immortal/immortal.log 2>&1 &
+exec /opt/node/current/bin/node immortal.js $1 >> /var/log/immortal/immortal.log 2>&1 &
