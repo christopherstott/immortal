@@ -59,6 +59,16 @@ var cpuCheck	= function(name,pid,limit,callback) {
 	});
 };
 
+////////////////////////////////////////////////////////////////////////////
+//
+var diskSpaceCheck = function(disk,limit,callback) {
+	var diskCommand = "df -m|grep "+disk+"|awk '{print $4}'";
+	child_process.exec(diskCommand, function(error, stdout, stderr) {
+		var free = parseInt(stdout);		
+		callback(free > limit);
+	});	
+};
+
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -220,6 +230,7 @@ var immortal = {
 		var self = this;
 		
 		try {
+			
 			for (var k in this.config.servers) {
 				if (!this.restarting[k]) {
 					if (this.config.servers[k].health) {
@@ -256,7 +267,27 @@ var immortal = {
 			}			
 		}
 		catch (e) {
-			log('EXCEPTION in restartAll : ' + e);
+			log('EXCEPTION in performHealthChecks : ' + e);
+		}
+	},
+	
+	////////////////////////////////////////////////////////////////////////////
+	//
+	lowFrequencyHealthChecks: function() {
+		var self = this;
+		
+		try {
+			if (this.config.disk) {
+				diskSpaceCheck(this.config.disk.name,this.config.disk.minfree,function(ok) {
+					if (!ok) {
+						log('Low Disk!');
+						self.sendGeneralEmail('Low Disk','Low Disk');
+					};
+				});						
+			}
+		}
+		catch (e) {
+			log('EXCEPTION in lowFrequencyHealthChecks : ' + e);
 		}
 	},
 	
@@ -282,12 +313,30 @@ var immortal = {
 			});			
 		});
 	},
+	
+	////////////////////////////////////////////////////////////////////////////
+	//
+	sendGeneralEmail : function(subject,body,cb) {
+		log('Sending Email : ' + subject);
+		var self = this;
+		var ses = aws.createSESClient(self.config.email.aws.key, self.config.email.aws.secret);
+		ses.call("SendEmail", { 
+			'Destination.ToAddresses.member.1' : self.config.email.to,
+			'Message.Body.Text.Data': body,
+			'Message.Subject.Data':'['+self.config.deployment.name+'] '+subject,
+			'Source' : self.config.email.from
+		},
+		function(result) {
+			if (cb) cb();
+		});
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////
 //
 immortal.startAll();
 setInterval(function() { immortal.performHealthChecks.call(immortal) }, 5*1000);
+setInterval(function() { immortal.lowFrequencyHealthChecks.call(immortal) }, 5*60*1000);
 
 
 ////////////////////////////////////////////////////////////////////////////
