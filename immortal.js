@@ -222,29 +222,35 @@ var immortal = {
 		try {
 			for (var k in this.config.servers) {
 				if (!this.restarting[k]) {
-					healthCheck(k,this.config.servers[k].health,function(name,status) {
-						if (status !== 200 && !self.restarting[k]) {
-							log('Health check failed!');							
-							self.restart(name);
-							self.sendEmail(name,name + ' Health check failed','Health check failed');
-						}
-					});
+					if (this.config.servers[k].health) {
+						healthCheck(k,this.config.servers[k].health,function(name,status) {
+							if (status !== 200 && !self.restarting[k]) {
+								log('Health check failed!');							
+								self.restart(name);
+								self.sendEmail(name,name + ' Health check failed','Health check failed');
+							}
+						});						
+					}
 
-					memCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxmemory,function(name,ok) {
-						if (!ok && !self.restarting[k]) {
-							log('Memory Check Failed!');
-							self.restart(name);							
-							self.sendEmail(name,name + ' Memory check failed','Memory check failed');
-						};
-					});
+					if (this.config.servers[k].maxmemory) {
+						memCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxmemory,function(name,ok) {
+							if (!ok && !self.restarting[k]) {
+								log('Memory Check Failed!');
+								self.restart(name);							
+								self.sendEmail(name,name + ' Memory check failed','Memory check failed');
+							};
+						});						
+					}
 
-					cpuCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxcpu,function(name,ok) {
-						if (!ok && !self.restarting[k]) {
-							log('CPU Check Failed!');
-							self.restart(name);							
-							self.sendEmail(name,name + ' CPU check failed','CPU check failed');						
-						};
-					});	
+					if (this.config.servers[k].maxcpu) {
+						cpuCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxcpu,function(name,ok) {
+							if (!ok && !self.restarting[k]) {
+								log('CPU Check Failed!');
+								self.restart(name);							
+								self.sendEmail(name,name + ' CPU check failed','CPU check failed');						
+							};
+						});						
+					}
 				}
 				
 			}			
