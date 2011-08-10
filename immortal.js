@@ -12,9 +12,10 @@ var nodePath		= process.argv[0];
 ////////////////////////////////////////////////////////////////////////////
 //
 var date			= function() 		{ return new Date() };
-var log				= function(message) { console.log(date() + ' - ' + message)};
-var memCommand		= function(pid) 	{ return "ps -p "+pid+" -o rss | tail -n 1";}
-var cpuCommand		= function(pid) 	{ return "ps -p "+pid+" -o cpu | tail -n 1";}
+var log				= function(message) { console.log(date() + ' - ' + message); };
+var logException	= function(m,e)		{ log('Exception : ' + m); log(e); log(e.stack); };
+var memCommand		= function(pid) 	{ return "ps -p "+pid+" -o rss | tail -n 1"; };
+var cpuCommand		= function(pid) 	{ return "ps -p "+pid+" -o cpu | tail -n 1"; };
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -89,7 +90,7 @@ var immortal = {
 			this.config = JSON.parse(fs.readFileSync(configFile,'utf8'));			
 		}
 		catch (e) {
-			log('EXCEPTION IN loadConfig : ' + e);
+			logException('loadConfig',e);
 		}
 	},
 
@@ -104,7 +105,7 @@ var immortal = {
 			}	
 		}	
 		catch (e) {
-			log('EXCEPTION IN startAll : ' + e);
+			logException('startAll',e);
 		}
 	},
 	
@@ -120,7 +121,7 @@ var immortal = {
 			}			
 		}
 		catch (e) {
-			log('EXCEPTION in restartAll : ' + e);
+			logException('restartAll',e);
 		}
 	},
 	
@@ -189,7 +190,7 @@ var immortal = {
 			process.childProcess.addListener('exit', restartHandler(process,name));			
 		}
 		catch(e) {
-			log('EXCEPTION in start : ' + e);
+			logException('start',e);
 		}
 	},
 	
@@ -203,7 +204,7 @@ var immortal = {
 			this.processes[name].childProcess = null;			
 		}
 		catch (e) {
-			log('EXCEPTION in stop' + e);
+			logException('stop',e);
 		}
 	},
 	
@@ -267,7 +268,7 @@ var immortal = {
 			}			
 		}
 		catch (e) {
-			log('EXCEPTION in performHealthChecks : ' + e);
+			logException('performHealthChecks',e);
 		}
 	},
 	
@@ -287,7 +288,7 @@ var immortal = {
 			}
 		}
 		catch (e) {
-			log('EXCEPTION in lowFrequencyHealthChecks : ' + e);
+			logException('lowFrequencyHealthChecks',e);
 		}
 	},
 	
