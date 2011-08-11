@@ -15,7 +15,7 @@ var date			= function() 		{ return new Date() };
 var log				= function(message) { console.log(date() + ' - ' + message); };
 var logException	= function(m,e)		{ log('Exception : ' + m); log(e); log(e.stack); };
 var memCommand		= function(pid) 	{ return "ps -p "+pid+" -o rss | tail -n 1"; };
-var cpuCommand		= function(pid) 	{ return "ps -p "+pid+" -o cpu | tail -n 1"; };
+var cpuCommand		= function(pid) 	{ return "ps -p "+pid+" -o pcpu | tail -n 1"; };
 
 ////////////////////////////////////////////////////////////////////////////
 //
