@@ -138,23 +138,23 @@ var immortal = {
 			options.env = process.env;
 			options.env.NODE_ENV=processConfig.env;			
 
-			var process = this.processes[name] = this.processes[name] || {};
-			process.name		= name;
+			var currentProcess = this.processes[name] = this.processes[name] || {};
+			currentProcess.name		= name;
 
 			var arguments = processConfig.arguments.split(' ');
 			arguments.unshift(processConfig.command);
 
-			process.childProcess 	= child_process.spawn(nodePath,arguments,options);			
+			currentProcess.childProcess 	= child_process.spawn(nodePath,arguments,options);			
 
 			////////////////////////////////////////////////////////////////////////////
 			//
-			var restartHandler = function(process,name) {
+			var restartHandler = function(currentProcess,name) {
 				return function(code) {
 					if (!self.restarting[name]) {
 						self.restarting[name]=true;						
 						log('Process ' + name + ' died. Restarting');
-						process.childProcess = null;
-						self.start(process.name);					
+						currentProcess.childProcess = null;
+						self.start(currentProcess.name);					
 						self.sendEmail(name,name + ' Crashed','Crash');	
 						setTimeout(function() {
 							self.restarting[name]=false;							
@@ -163,19 +163,19 @@ var immortal = {
 				};
 			}
 			
-			process.stdout = fs.createWriteStream(path.join(processConfig.logdir,processConfig.stdout),{flags:'a'});
-			process.stderr = fs.createWriteStream(path.join(processConfig.logdir,processConfig.stderr),{flags:'a'});			
+			currentProcess.stdout = fs.createWriteStream(path.join(processConfig.logdir,processConfig.stdout),{flags:'a'});
+			currentProcess.stderr = fs.createWriteStream(path.join(processConfig.logdir,processConfig.stderr),{flags:'a'});			
 
 			////////////////////////////////////////////////////////////////////////////
 			//
-			process.childProcess.stdout.addListener('data', function (data) {
-				process.stdout.write(data);
+			currentProcess.childProcess.stdout.addListener('data', function (data) {
+				currentProcess.stdout.write(data);
 			});
 
 			////////////////////////////////////////////////////////////////////////////
 			//
-			process.childProcess.stderr.addListener('data', function (data) {
-				process.stderr.write(data);
+			currentProcess.childProcess.stderr.addListener('data', function (data) {
+				currentProcess.stderr.write(data);
 				if (!self.restarting[name]) {
 					setTimeout(function() {
 						if (!self.restarting[name]) {					
@@ -187,7 +187,7 @@ var immortal = {
 
 			////////////////////////////////////////////////////////////////////////////
 			//
-			process.childProcess.addListener('exit', restartHandler(process,name));			
+			currentProcess.childProcess.addListener('exit', restartHandler(currentProcess,name));			
 		}
 		catch(e) {
 			logException('start',e);
