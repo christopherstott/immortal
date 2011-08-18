@@ -135,7 +135,7 @@ var immortal = {
 			var processConfig = this.config.servers[name];
 			var options = {};
 			options.cwd = processConfig.cwd;
-			options.env = {};
+			options.env = process.env;
 			options.env.NODE_ENV=processConfig.env;			
 
 			var process = this.processes[name] = this.processes[name] || {};
