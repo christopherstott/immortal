@@ -13,7 +13,7 @@ function hmacSha256(key, toSign) {
 var genericAWSClient = function(obj) {
   var creds = crypto.createCredentials({});
   if (null == obj.secure)
-    obj.secure = true;
+    obj.secure = false;
 
   obj.connection = obj.secure ? https : http;
   obj.call = function (action, query, callback) {
@@ -57,7 +57,7 @@ var genericAWSClient = function(obj) {
       //the listener that handles the response chunks
       res.addListener('data', function (chunk) {
         data += chunk.toString()
-      })
+      });
       res.addListener('end', function() {
         /*var parser = new xml2js.Parser();
         parser.addListener('end', function(result) {
@@ -65,8 +65,13 @@ var genericAWSClient = function(obj) {
         });
         parser.parseString(data);*/
 		callback(data);
-      })
+      });
+
     });
+	  req.on('error', function(err){
+		  console.error("error=" + err);
+		  callback('');
+	  });
     req.write(body)
     req.end()
   }

@@ -362,3 +362,9 @@ http.createServer(function (req, res) {
 	res.writeHead(200, {'Content-Type': 'text/plain'});
 	res.end();
 }).listen(12000, "localhost");
+
+process.on('uncaughtException', function (err) {
+    console.log("Uncaught exception: " + err);
+	console.log(err.stack);
+    console.trace();
+});
