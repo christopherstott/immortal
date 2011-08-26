@@ -141,7 +141,7 @@ var immortal = {
 			var currentProcess = this.processes[name] = this.processes[name] || {};
 			currentProcess.name		= name;
 
-			var arguments = processConfig.arguments.split(' ');
+			var arguments = processConfig.arguments ? processConfig.arguments.split(' ') : [];
 			arguments.unshift(processConfig.command);
 
 			currentProcess.childProcess 	= child_process.spawn(nodePath,arguments,options);			
@@ -236,7 +236,7 @@ var immortal = {
 				if (!this.restarting[k]) {
 					if (this.config.servers[k].health) {
 						healthCheck(k,this.config.servers[k].health,function(name,status) {
-							if (status !== 200 && !self.restarting[k]) {
+							if (status !== 200 && !self.restarting[name]) {
 								log('Health check failed!');							
 								self.restart(name);
 								self.sendEmail(name,name + ' Health check failed','Health check failed');
@@ -246,7 +246,7 @@ var immortal = {
 
 					if (this.config.servers[k].maxmemory) {
 						memCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxmemory,function(name,ok) {
-							if (!ok && !self.restarting[k]) {
+							if (!ok && !self.restarting[name]) {
 								log('Memory Check Failed!');
 								self.restart(name);							
 								self.sendEmail(name,name + ' Memory check failed','Memory check failed');
@@ -256,7 +256,7 @@ var immortal = {
 
 					if (this.config.servers[k].maxcpu) {
 						cpuCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxcpu,function(name,ok) {
-							if (!ok && !self.restarting[k]) {
+							if (!ok && !self.restarting[name]) {
 								log('CPU Check Failed!');
 								self.restart(name);							
 								self.sendEmail(name,name + ' CPU check failed','CPU check failed');						
@@ -297,22 +297,29 @@ var immortal = {
 	sendEmail : function(name,subject,body,cb) {
 		log('Sending Email : ' + subject);
 		var self = this;
-		child_process.exec('tail -n 40 '+self.config.servers[name].stdout,function(err,stdout) {
-			child_process.exec('tail -n 40 '+self.config.servers[name].stderr,function(err,stderr) {
-				var footer = "\n\stdout : \n\n" + stdout + "\n\stderr : \n\n" +stderr;
+		
+		if (self.config.email) {
+			child_process.exec('tail -n 40 '+self.config.servers[name].stdout,function(err,stdout) {
+				child_process.exec('tail -n 40 '+self.config.servers[name].stderr,function(err,stderr) {
+					var footer = "\n\stdout : \n\n" + stdout + "\n\stderr : \n\n" +stderr;
 
-				var ses = aws.createSESClient(self.config.email.aws.key, self.config.email.aws.secret);
-				ses.call("SendEmail", { 
-					'Destination.ToAddresses.member.1' : self.config.email.to,
-					'Message.Body.Text.Data': body+footer,
-					'Message.Subject.Data':'['+self.config.deployment.name+'] '+subject,
-					'Source' : self.config.email.from
-				},
-				function(result) {
-					if (cb) cb();
-				});
+					var ses = aws.createSESClient(self.config.email.aws.key, self.config.email.aws.secret);
+					ses.call("SendEmail", { 
+						'Destination.ToAddresses.member.1' : self.config.email.to,
+						'Message.Body.Text.Data': body+footer,
+						'Message.Subject.Data':'['+self.config.deployment.name+'] '+subject,
+						'Source' : self.config.email.from
+					},
+					function(result) {
+						if (cb) cb();
+					});
+				});			
 			});			
-		});
+		}
+		else {
+			if (cb) cb();
+		}
+		
 	},
 	
 	////////////////////////////////////////////////////////////////////////////
