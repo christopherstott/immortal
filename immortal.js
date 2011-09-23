@@ -346,8 +346,11 @@ var immortal = {
 ////////////////////////////////////////////////////////////////////////////
 //
 immortal.startAll();
-setInterval(function() { immortal.performHealthChecks.call(immortal) }, 5*1000);
-setInterval(function() { immortal.lowFrequencyHealthChecks.call(immortal) }, 5*60*1000);
+setTimeout(function() {
+	setInterval(function() { immortal.performHealthChecks.call(immortal) }, 5*1000);
+	setInterval(function() { immortal.lowFrequencyHealthChecks.call(immortal) }, 5*60*1000);	
+},2*60*1000);
+
 
 
 ////////////////////////////////////////////////////////////////////////////
