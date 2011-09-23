@@ -150,6 +150,7 @@ var immortal = {
 			//
 			var restartHandler = function(currentProcess,name) {
 				return function(code) {
+					log('\trestartHandler name='+name + ' self.restarting[name]'+name);			
 					if (!self.restarting[name]) {
 						self.restarting[name]=true;						
 						log('Process ' + name + ' died. Restarting');
@@ -157,6 +158,7 @@ var immortal = {
 						self.start(currentProcess.name);					
 						self.sendEmail(name,name + ' Crashed','Crash');	
 						setTimeout(function() {
+							log('\tResetting restarting to false for : ' + name);		
 							self.restarting[name]=false;							
 						},5000);					
 					}
@@ -211,6 +213,7 @@ var immortal = {
 	////////////////////////////////////////////////////////////////////////////
 	//
 	restart: function(name) {
+		log('\tRestarting : ' + name);
 		var self = this;
 		
 		if (!this.restarting[name]) {
@@ -361,8 +364,15 @@ http.createServer(function (req, res) {
 	////////////////////////////////////////////////////////////////////////////
 	//
 	req.route('/restart',function() {
+		log('\tHTTP Restart');		
 		immortal.restartAll();
 	});
+	
+	////////////////////////////////////////////////////////////////////////////
+	//
+	req.route('/shutdown',function() {
+		process.exit(0);
+	});	
 	
 	////////////////////////////////////////////////////////////////////////////
 	//
