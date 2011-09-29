@@ -8,6 +8,7 @@ var url				= require('url');
 var aws				= require('./ses');
 
 var nodePath		= process.argv[0];
+var netBindings 	= process.binding('net');
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -99,8 +100,16 @@ var immortal = {
 	startAll: function() {	
 		try {
 			this.loadConfig();
-
+			
 			for (var k in this.config.servers) {
+				
+				var fd = netBindings.socket('tcp4');
+				netBindings.bind(fd, this.config.servers[k].port);
+				netBindings.listen(fd, 128);
+				
+				var currentProcess = this.processes[name] = this.processes[name] || {};
+				currentProcess.fd = fd;
+				
 				this.start(k);
 			}	
 		}	
@@ -165,19 +174,18 @@ var immortal = {
 				};
 			}
 			
-			currentProcess.stdout = fs.createWriteStream(path.join(processConfig.logdir,processConfig.stdout),{flags:'a'});
-			currentProcess.stderr = fs.createWriteStream(path.join(processConfig.logdir,processConfig.stderr),{flags:'a'});			
+			currentProcess.output = fs.createWriteStream(path.join(processConfig.logdir,processConfig.output),{flags:'a'});
 
 			////////////////////////////////////////////////////////////////////////////
 			//
 			currentProcess.childProcess.stdout.addListener('data', function (data) {
-				currentProcess.stdout.write(data);
+				currentProcess.output.write(data);
 			});
 
 			////////////////////////////////////////////////////////////////////////////
 			//
 			currentProcess.childProcess.stderr.addListener('data', function (data) {
-				currentProcess.stderr.write(data);
+				currentProcess.output.write(data);
 				if (!self.restarting[name]) {
 					setTimeout(function() {
 						if (!self.restarting[name]) {					
@@ -298,13 +306,17 @@ var immortal = {
 	////////////////////////////////////////////////////////////////////////////
 	//
 	sendEmail : function(name,subject,body,cb) {
+
+		
 		log('Sending Email : ' + subject);
 		var self = this;
 		
 		if (self.config.email) {
-			child_process.exec('tail -n 40 '+self.config.servers[name].stdout,function(err,stdout) {
-				child_process.exec('tail -n 40 '+self.config.servers[name].stderr,function(err,stderr) {
-					var footer = "\n\stdout : \n\n" + stdout + "\n\stderr : \n\n" +stderr;
+				if (self.config.email.enable===false) {
+					return cb();
+				}
+				child_process.exec('tail -n 40 '+self.config.servers[name].output,function(err,output) {
+					var footer = "\n\output : \n\n" + output;
 
 					var ses = aws.createSESClient(self.config.email.aws.key, self.config.email.aws.secret);
 					ses.call("SendEmail", { 
@@ -317,7 +329,6 @@ var immortal = {
 						if (cb) cb();
 					});
 				});			
-			});			
 		}
 		else {
 			if (cb) cb();
@@ -328,6 +339,11 @@ var immortal = {
 	////////////////////////////////////////////////////////////////////////////
 	//
 	sendGeneralEmail : function(subject,body,cb) {
+		
+		if (this.config.email.enable===false) {
+			return cb();
+		}
+		
 		log('Sending Email : ' + subject);
 		var self = this;
 		var ses = aws.createSESClient(self.config.email.aws.key, self.config.email.aws.secret);
