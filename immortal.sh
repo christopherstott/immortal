@@ -1,5 +1,7 @@
 #!/bin/sh
 
+PWD=`pwd`
+export NODE_PATH="$PWD"
 mkdir -p /var/log/immortal
 
 echo 'Killing previous node instances'
