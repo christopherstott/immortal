@@ -1,22 +1,25 @@
-
+var common			= require('common');
 var child_process	= require('child_process');
 var fs				= require("fs");
 var sys				= require("sys");
 var path			= require('path');
 var http 			= require('http');
 var url				= require('url');
-var aws				= require('./ses');
+var net				= require('net');
+var aws				= require('ses');
+var ipcserver		= require('ipcserver');
+var emailcheck		= require('emailcheck');
 
 var nodePath		= process.argv[0];
 var netBindings 	= process.binding('net');
 
 ////////////////////////////////////////////////////////////////////////////
 //
-var date			= function() 		{ return new Date() };
-var log				= function(message) { console.log(date() + ' - ' + message); };
-var logException	= function(m,e)		{ log('Exception : ' + m); log(e); log(e.stack); };
 var memCommand		= function(pid) 	{ return "ps -p "+pid+" -o rss | tail -n 1"; };
 var cpuCommand		= function(pid) 	{ return "ps -p "+pid+" -o pcpu | tail -n 1"; };
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -33,11 +36,11 @@ var healthCheck		= function(name,urlString,callback) {
 	
 	request = http.request(requestOptions, function(response) {
 		response.on('end', function () {
-			callback(name,response.statusCode);
+			callback(name,response.statusCode===200);
 		});
 	});
 	request.on('error', function () {
-		callback(name,0);
+		callback(name,false);
 	});
 	request.end();
 };
@@ -87,11 +90,11 @@ var immortal = {
 	loadConfig: function() {
 		try {
 			var configFile = process.argv[2] || 'config.json';
-			log('Reading - ' + configFile);
+			common.log('Reading - ' + configFile);
 			this.config = JSON.parse(fs.readFileSync(configFile,'utf8'));			
 		}
 		catch (e) {
-			logException('loadConfig',e);
+			common.logException('loadConfig',e);
 		}
 	},
 
@@ -107,13 +110,18 @@ var immortal = {
 				netBindings.bind(fd, this.config.servers[k].port);
 				netBindings.listen(fd, 128);
 				
+				var currentProcess = this.processes[k] = this.processes[k] || {};
 				currentProcess.fd = fd;
+				
+				currentProcess.healthState = {};
+				currentProcess.cpuState = {};
+				currentProcess.memoryState = {};
 				
 				this.start(k);
 			}	
 		}	
 		catch (e) {
-			logException('startAll',e);
+			common.logException('startAll',e);
 		}
 	},
 	
@@ -121,7 +129,7 @@ var immortal = {
 	//
 	restartAll: function() {
 		try {
-			log('Restarting All Processes');
+			common.log('Restarting All Processes');
 			this.loadConfig();
 
 			for (var k in this.config.servers) {
@@ -129,7 +137,7 @@ var immortal = {
 			}			
 		}
 		catch (e) {
-			logException('restartAll',e);
+			common.logException('restartAll',e);
 		}
 	},
 	
@@ -137,7 +145,7 @@ var immortal = {
 	//
 	start: function(name) {
 		try {
-			log('\tStarting : ' + name);
+			common.log('\tStarting : ' + name);
 			var self = this;
 			
 			var processConfig = this.config.servers[name];
@@ -155,29 +163,39 @@ var immortal = {
 
 			var arguments = processConfig.arguments ? processConfig.arguments.split(' ') : [];
 			arguments.unshift(processConfig.command);
+			
+			if (currentProcess.childProcess) {
+				currentProcess.oldProcess = currentProcess.childProcess;
+				currentProcess.oldProcess.removeAllListeners('exit');				
+			}
 
 			currentProcess.childProcess 	= child_process.spawn(nodePath,arguments,options);			
+			
+			ipcserver.registerProcess(currentProcess)
 
 			////////////////////////////////////////////////////////////////////////////
 			//
 			var restartHandler = function(currentProcess,name) {
 				return function(code) {
-					log('\trestartHandler name='+name + ' self.restarting[name]'+name);			
+					common.log('\trestartHandler name='+name + ' self.restarting[name]'+name);			
 					if (!self.restarting[name]) {
 						self.restarting[name]=true;						
-						log('Process ' + name + ' died. Restarting');
+						common.log('Process ' + name + ' died. Restarting');
 						currentProcess.childProcess = null;
 						self.start(currentProcess.name);					
 						self.sendEmail(name,name + ' Crashed','Crash');	
 						setTimeout(function() {
-							log('\tResetting restarting to false for : ' + name);		
+							common.log('\tResetting restarting to false for : ' + name);		
 							self.restarting[name]=false;							
 						},5000);					
 					}
 				};
 			}
 			
-			currentProcess.output = fs.createWriteStream(path.join(processConfig.logdir,processConfig.output),{flags:'a'});
+			if (!currentProcess.output) {
+				currentProcess.output = fs.createWriteStream(path.join(processConfig.logdir,processConfig.output),{flags:'a'});				
+			}
+
 
 			////////////////////////////////////////////////////////////////////////////
 			//
@@ -203,39 +221,28 @@ var immortal = {
 			currentProcess.childProcess.addListener('exit', restartHandler(currentProcess,name));			
 		}
 		catch(e) {
-			logException('start',e);
-		}
-	},
-	
-	////////////////////////////////////////////////////////////////////////////
-	//
-	stop: function(name) {
-		try {
-			log('\tStopping : ' + name);		
-			this.processes[name].childProcess.removeAllListeners('exit');
-			this.processes[name].childProcess.kill('SIGKILL');
-			this.processes[name].childProcess = null;			
-		}
-		catch (e) {
-			logException('stop',e);
+			common.logException('start',e);
 		}
 	},
 	
 	////////////////////////////////////////////////////////////////////////////
 	//
 	restart: function(name) {
-		log('\tRestarting : ' + name);
+		common.log('\tRestarting : ' + name);
 		var self = this;
 		
 		if (!this.restarting[name]) {
 			this.restarting[name]=true;
-			this.stop(name);
+			//this.stop(name);
 			this.start(name);
 			
 			// Wait a while before we consider the restart complete
 			setTimeout(function() {
 				self.restarting[name]=false;							
-			},5000);
+			},25000);
+		}
+		else {
+			common.log('\tSkipping Restart : ' + name);
 		}
 	},
 	
@@ -244,45 +251,47 @@ var immortal = {
 	performHealthChecks: function() {
 		var self = this;
 		
+		var phrases = {};
+		phrases.justdown = ' just failed. Restarting.';
+		phrases.justup = ' came back online. Success.';
+		phrases.stilldown = ' is still down. Manual intervention required';
+		
+		var checkForEmail = function(state,description) {
+			return function(name,ok) {
+				if (!self.restarting[name]) {
+					var result = emailcheck.check(state,ok);
+					if (result) {
+						if (result==='justdown') {
+							self.restart(name);										
+						}
+
+						self.sendEmail(name,name + ' '+description+' ' + phrases[result],description+' ' + phrases[result]);									
+					}
+
+				}
+			}
+		}
+		
 		try {
-			
 			for (var k in this.config.servers) {
 				if (!this.restarting[k]) {
 					if (this.config.servers[k].health) {
-						healthCheck(k,this.config.servers[k].health,function(name,status) {
-							if (status !== 200 && !self.restarting[name]) {
-								log('Health check failed!');							
-								self.restart(name);
-								self.sendEmail(name,name + ' Health check failed','Health check failed');
-							}
-						});						
+						healthCheck(k,this.config.servers[k].health,checkForEmail(this.processes[k].healthState,'Health check'));						
 					}
 
 					if (this.config.servers[k].maxmemory) {
-						memCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxmemory,function(name,ok) {
-							if (!ok && !self.restarting[name]) {
-								log('Memory Check Failed!');
-								self.restart(name);							
-								self.sendEmail(name,name + ' Memory check failed','Memory check failed');
-							};
-						});						
+						memCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxmemory,checkForEmail(this.processes[k].memoryState,'Memory check'));						
 					}
 
 					if (this.config.servers[k].maxcpu) {
-						cpuCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxcpu,function(name,ok) {
-							if (!ok && !self.restarting[name]) {
-								log('CPU Check Failed!');
-								self.restart(name);							
-								self.sendEmail(name,name + ' CPU check failed','CPU check failed');						
-							};
-						});						
+						cpuCheck(k,this.processes[k].childProcess.pid,this.config.servers[k].maxcpu,checkForEmail(this.processes[k].cpuState,'CPU check'));						
 					}
 				}
 				
 			}			
 		}
 		catch (e) {
-			logException('performHealthChecks',e);
+			common.logException('performHealthChecks',e);
 		}
 	},
 	
@@ -295,14 +304,14 @@ var immortal = {
 			if (this.config.disk) {
 				diskSpaceCheck(this.config.disk.name,this.config.disk.minfree,function(ok) {
 					if (!ok) {
-						log('Low Disk!');
+						common.log('Low Disk!');
 						self.sendGeneralEmail('Low Disk','Low Disk');
 					};
 				});						
 			}
 		}
 		catch (e) {
-			logException('lowFrequencyHealthChecks',e);
+			common.logException('lowFrequencyHealthChecks',e);
 		}
 	},
 	
@@ -311,12 +320,18 @@ var immortal = {
 	sendEmail : function(name,subject,body,cb) {
 
 		
-		log('Sending Email : ' + subject);
+		common.log('Sending Email : ' + subject);
 		var self = this;
 		
 		if (self.config.email) {
 				if (self.config.email.enable===false) {
-					return cb();
+					if (cb) {
+						return cb();						
+					}
+					else {
+						return;
+					}
+
 				}
 				child_process.exec('tail -n 40 '+self.config.servers[name].output,function(err,output) {
 					var footer = "\n\output : \n\n" + output;
@@ -347,7 +362,7 @@ var immortal = {
 			return cb();
 		}
 		
-		log('Sending Email : ' + subject);
+		common.log('Sending Email : ' + subject);
 		var self = this;
 		var ses = aws.createSESClient(self.config.email.aws.key, self.config.email.aws.secret);
 		ses.call("SendEmail", { 
@@ -386,7 +401,7 @@ http.createServer(function (req, res) {
 	////////////////////////////////////////////////////////////////////////////
 	//
 	req.route('/restart',function() {
-		log('\tHTTP Restart');		
+		common.log('\tHTTP Restart');		
 		immortal.restartAll();
 	});
 	
@@ -403,7 +418,7 @@ http.createServer(function (req, res) {
 }).listen(12000, "localhost");
 
 process.on('uncaughtException', function (err) {
-    console.log("Uncaught exception: " + err);
-	console.log(err.stack);
+    common.log("Uncaught exception: " + err);
+	common.log(err.stack);
     console.trace();
 });
