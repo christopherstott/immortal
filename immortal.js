@@ -92,6 +92,7 @@ var immortal = {
 			var configFile = process.argv[2] || 'config.json';
 			common.log('Reading - ' + configFile);
 			this.config = JSON.parse(fs.readFileSync(configFile,'utf8'));			
+			this.config.immortal = this.config.immortal || {};
 		}
 		catch (e) {
 			common.logException('loadConfig',e);
@@ -380,6 +381,8 @@ var immortal = {
 ////////////////////////////////////////////////////////////////////////////
 //
 immortal.loadConfig();
+ipcserver.init(immortal.config.immortal.socketfile || '/tmp/immortal.sock');
+
 immortal.startAll();
 setTimeout(function() {
 	setInterval(function() { immortal.performHealthChecks.call(immortal) }, 5*1000);
@@ -390,9 +393,6 @@ setTimeout(function() {
 
 ////////////////////////////////////////////////////////////////////////////
 //
-console.error('HELLO')
-console.error(JSON.stringify(immortal.config));
-
 http.createServer(function (req, res) {
 	////////////////////////////////////////////////////////////////////////////
 	//
