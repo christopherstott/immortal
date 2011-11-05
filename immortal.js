@@ -107,7 +107,6 @@ var immortal = {
 				netBindings.bind(fd, this.config.servers[k].port);
 				netBindings.listen(fd, 128);
 				
-				var currentProcess = this.processes[name] = this.processes[name] || {};
 				currentProcess.fd = fd;
 				
 				this.start(k);
@@ -145,6 +144,10 @@ var immortal = {
 			var options = {};
 			options.cwd = processConfig.cwd;
 			options.env = process.env;
+			if (processConfig.path) {
+				options.env.NODE_PATH=processConfig.path.replace(/PWD/g,options.cwd)				
+			}
+			
 			options.env.NODE_ENV=processConfig.env;			
 
 			var currentProcess = this.processes[name] = this.processes[name] || {};
