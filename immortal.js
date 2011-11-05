@@ -379,6 +379,7 @@ var immortal = {
 
 ////////////////////////////////////////////////////////////////////////////
 //
+immortal.loadConfig();
 immortal.startAll();
 setTimeout(function() {
 	setInterval(function() { immortal.performHealthChecks.call(immortal) }, 5*1000);
@@ -389,6 +390,9 @@ setTimeout(function() {
 
 ////////////////////////////////////////////////////////////////////////////
 //
+console.error('HELLO')
+console.error(JSON.stringify(immortal.config));
+
 http.createServer(function (req, res) {
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -415,7 +419,7 @@ http.createServer(function (req, res) {
 	//
 	res.writeHead(200, {'Content-Type': 'text/plain'});
 	res.end();
-}).listen(12000, "localhost");
+}).listen(immortal.config.immortal.port || 12000, "localhost");
 
 process.on('uncaughtException', function (err) {
     common.log("Uncaught exception: " + err);
