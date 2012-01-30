@@ -1,0 +1,33 @@
+{
+	"deployment": {
+		"name":				"Immortal test"
+	},
+
+	"immortal": {
+		"port": 12000,
+		"socketfile":"/tmp/immortal-test.sock"
+	},
+	
+	"servers": {
+		"api": {
+			"command":		"test/test.js",
+			"env":			"test",
+			"health":		"http://localhost:3000/health",
+			"maxcpu":		95,
+			"maxmemory":	512,
+			"output":		"test.log",
+			"path":		"PWD:PWD/deps:PWD/shared:PWD/extensions",
+			"port":		3000
+		},
+		"admin": {
+			"command":		"test/test.js",
+			"env":			"test",
+			"health":		"http://localhost:4000/health",
+			"maxcpu":		95,
+			"maxmemory":	512,
+			"output":		"test.log",
+			"path":		"PWD:PWD/deps:PWD/shared:PWD/extensions",
+			"port":		4000
+		}		
+	}
+}

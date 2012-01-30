@@ -1,7 +1,7 @@
 var common			= require('common');
 var child_process	= require('child_process');
 var fs				= require("fs");
-var sys				= require("sys");
+var sys				= require("util");
 var path			= require('path');
 var http 			= require('http');
 var url				= require('url');
@@ -10,8 +10,8 @@ var aws				= require('ses');
 var ipcserver		= require('ipcserver');
 var emailcheck		= require('emailcheck');
 
-var nodePath		= process.argv[0];
-var netBindings 	= process.binding('net');
+//var nodePath		= process.argv[0];
+//var netBindings 	= process.binding('net');
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -107,12 +107,31 @@ var immortal = {
 			
 			for (var k in this.config.servers) {
 				
+				//var socket = new net.Socket({type:'tcp4'});
+				//for (var k in socket) {
+				//	console.log(k,socket[k]);
+				//}
+				//socket.bind(this.config.servers[k].port);
+				//socket.listen(this.config.servers[k].port);
+				//socket.connect(this.config.servers[k].port);
+				
+				var s = net.createServer();
+				s.listen(this.config.servers[k].port);
+				//for (var k in s) {
+				//	console.log(k,s[k]);
+				//}
+				//console.log(s.fd);
+				
+				/*
 				var fd = netBindings.socket('tcp4');
 				netBindings.bind(fd, this.config.servers[k].port);
-				netBindings.listen(fd, 128);
+				netBindings.listen(fd, 128);*/
 				
 				var currentProcess = this.processes[k] = this.processes[k] || {};
-				currentProcess.fd = fd;
+				//currentProcess.fd = s.fd;
+				currentProcess.server = s;
+				currentProcess.handle = s._handle;
+				
 				
 				currentProcess.healthState = {};
 				currentProcess.cpuState = {};
@@ -163,14 +182,15 @@ var immortal = {
 			currentProcess.name		= name;
 
 			var arguments = processConfig.arguments ? processConfig.arguments.split(' ') : [];
-			arguments.unshift(processConfig.command);
+			//arguments.unshift();
 			
 			if (currentProcess.childProcess) {
 				currentProcess.oldProcess = currentProcess.childProcess;
 				currentProcess.oldProcess.removeAllListeners('exit');				
 			}
 
-			currentProcess.childProcess 	= child_process.spawn(nodePath,arguments,options);			
+			var nodePath = processConfig.command;
+			currentProcess.childProcess 	= child_process.fork(nodePath,arguments,options);			
 			
 			ipcserver.registerProcess(currentProcess)
 
