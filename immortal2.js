@@ -2,9 +2,6 @@ var child_process	= require('child_process');
 var fs 				= require('fs');
 var http 			= require('http');
 
-var modulePath = 'test/test.js';
-
-
 ////////////////////////////////////////////////////////////////////////////
 //
 var config = {};
@@ -30,7 +27,7 @@ var children = {};
 //
 var start = function(server,serverConfig) {
 	console.log('STARTING PROCESS');
-	var child = child_process.fork(modulePath /*, arguments, options*/);	
+	var child = child_process.fork(serverConfig.command /*, arguments, options*/);	
 	////////////////////////////////////////////////////////////////////////////
 	//
 	child.on('exit',function() {
