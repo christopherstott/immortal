@@ -35,6 +35,10 @@ var start = function(server,serverConfig) {
 		options.env.NODE_PATH=serverConfig.path.replace(/PWD/g,options.cwd)				
 	}
 	
+	options.env.NODE_ENV=serverConfig.env;				
+	
+	console.log(options);
+	
 	var arguments = [];
 	
 	var child = child_process.fork(serverConfig.command, arguments, options);	
@@ -44,7 +48,7 @@ var start = function(server,serverConfig) {
 
 		if (!child.restarted) {
 			console.log('child exited abruptly');
-			start();						
+			start(server,serverConfig);						
 		}
 		else {
 			console.log('child exited cleanly');						
