@@ -27,7 +27,17 @@ var children = {};
 //
 var start = function(server,serverConfig) {
 	console.log('STARTING PROCESS');
-	var child = child_process.fork(serverConfig.command /*, arguments, options*/);	
+	
+	var options = {};
+	options.cwd = serverConfig.cwd;
+	options.env = process.env;
+	if (serverConfig.path) {
+		options.env.NODE_PATH=serverConfig.path.replace(/PWD/g,options.cwd)				
+	}
+	
+	var arguments = [];
+	
+	var child = child_process.fork(serverConfig.command, arguments, options);	
 	////////////////////////////////////////////////////////////////////////////
 	//
 	child.on('exit',function() {
