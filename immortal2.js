@@ -36,9 +36,8 @@ var start = function(server,serverConfig) {
 	}
 	
 	options.env.NODE_ENV=serverConfig.env;				
-	
-	console.log(options);
-	
+
+
 	var arguments = [];
 	
 	var child = child_process.fork(serverConfig.command, arguments, options);	
@@ -46,7 +45,7 @@ var start = function(server,serverConfig) {
 	//
 	child.on('exit',function() {
 
-		if (!child.restarted) {
+		if (!child.cleanstop) {
 			console.log('child exited abruptly');
 			start(server,serverConfig);						
 		}
@@ -59,9 +58,25 @@ var start = function(server,serverConfig) {
 	////////////////////////////////////////////////////////////////////////////
 	//
 	child.on('restart',function() {
-		child.restarted = true;
+		console.log('got restart');
+		child.cleanstop = true;
+		child.send({restart:1});
+	});
+	
+	////////////////////////////////////////////////////////////////////////////
+	//
+	child.on('stop',function() {
+		console.log('got stop');
+		child.cleanstop = true;
 		child.send({stop:1});
-		start();
+	});	
+	
+	////////////////////////////////////////////////////////////////////////////
+	//
+	child.on('message',function(m) {
+		if (m.readyForRestart) {
+			start(server,serverConfig);			
+		}
 	});
 
 
@@ -71,11 +86,20 @@ var start = function(server,serverConfig) {
 
 ////////////////////////////////////////////////////////////////////////////
 //
-var restartAll = function() {
-	console.log('restartAll');
+var emitAll = function(message) {
+	console.log('emitAll');
 	for (var serverName in config.servers) {
-		children[serverName].emit('restart');
-	}	
+
+		var restarter = function(serverName) {
+			return function() {
+				console.log('sending '+message+' to ' + serverName);			
+				children[serverName].emit(message);			
+			};
+		}
+
+		process.nextTick(restarter(serverName));
+
+	}
 };
 
 
@@ -118,20 +142,23 @@ http.createServer(function (req, res) {
 	//
 	req.route('/restart',function() {
 		console.log('HTTP COMMAND : restart');
-		restartAll();
+		res.writeHead(200, {'Content-Type': 'text/plain'});
+		res.end();
+		emitAll('restart');
 	});
 	
 	////////////////////////////////////////////////////////////////////////////
 	//
 	req.route('/shutdown',function() {
 		console.log('HTTP COMMAND : shutdown');
-		process.exit(0);
+		res.writeHead(200, {'Content-Type': 'text/plain'});
+		res.end();
+		emitAll('stop');		
+		setTimeout(function() {
+			process.exit(0);			
+		},500);
 	});	
 	
-	////////////////////////////////////////////////////////////////////////////
-	//
-	res.writeHead(200, {'Content-Type': 'text/plain'});
-	res.end();
 }).listen(config.immortal.port || 12000, "localhost");
 
 process.on('uncaughtException', function (err) {

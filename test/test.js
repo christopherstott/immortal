@@ -18,9 +18,18 @@ process.on('message', function(m, serverHandle) {
 		server.listen(serverHandle);
 	}
 	else {
+		if (m && m.restart) {
+			console.log('COMMAND : RESTART - Shutting down for restart');
+			server.close();
+			process.send({readyForRestart:1});
+			setTimeout(function() {
+				process.exit(0);				
+			},2000);
+		}
+				
 		if (m && m.stop) {
 			console.log('COMMAND : STOP - Shutting down this server');
-			server.close();			
+			server.close();
 			setTimeout(function() {
 				process.exit(0);				
 			},2000);
